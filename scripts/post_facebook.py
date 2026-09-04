@@ -6,6 +6,19 @@ import requests
 GRAPH_VERSION = "v21.0"
 
 
+def _raise_with_fb_error(resp):
+    """requests' raise_for_status() only gives a generic 'N Client Error' message,
+    which hides Facebook's actual JSON error (type/message/code/error_subcode) —
+    the part that actually explains WHY the call was rejected. Surface it."""
+    if resp.ok:
+        return
+    try:
+        detail = resp.json()
+    except ValueError:
+        detail = resp.text
+    raise requests.HTTPError(f"{resp.status_code} {resp.reason} — Facebook error detail: {detail}", response=resp)
+
+
 def post_photo(page_id: str, page_access_token: str, image_path: str, caption: str) -> dict:
     """Upload a local file directly."""
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{page_id}/photos"
@@ -13,7 +26,7 @@ def post_photo(page_id: str, page_access_token: str, image_path: str, caption: s
         files = {"source": f}
         data = {"caption": caption, "access_token": page_access_token}
         resp = requests.post(url, files=files, data=data, timeout=60)
-    resp.raise_for_status()
+    _raise_with_fb_error(resp)
     return resp.json()
 
 
@@ -22,7 +35,7 @@ def post_photo_by_url(page_id: str, page_access_token: str, image_url: str, capt
     url = f"https://graph.facebook.com/{GRAPH_VERSION}/{page_id}/photos"
     data = {"url": image_url, "caption": caption, "access_token": page_access_token}
     resp = requests.post(url, data=data, timeout=60)
-    resp.raise_for_status()
+    _raise_with_fb_error(resp)
     return resp.json()
 
 
