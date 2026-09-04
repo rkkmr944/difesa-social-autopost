@@ -96,15 +96,32 @@ def find_entry(calendar, target_date: str):
     return None
 
 
+IMAGE_CHECK_HEADERS = {
+    # Some hosts (Cloudflare, hosting-panel firewalls, etc.) block requests
+    # whose User-Agent looks like a bot/script rather than a browser, and
+    # will 403 a plain python-requests call even though the same URL loads
+    # fine in an actual browser. Presenting a normal browser UA avoids that.
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    ),
+    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+}
+
+
 def image_is_live(image_url: str) -> bool:
     try:
-        resp = requests.head(image_url, timeout=15, allow_redirects=True)
+        resp = requests.head(image_url, headers=IMAGE_CHECK_HEADERS, timeout=15, allow_redirects=True)
         if resp.status_code == 200:
             return True
-        # some hosts don't support HEAD properly; fall back to a light GET
-        resp = requests.get(image_url, timeout=15, stream=True)
-        return resp.status_code == 200
-    except requests.RequestException:
+        # some hosts don't support HEAD properly, or still block it; fall back to a light GET
+        resp = requests.get(image_url, headers=IMAGE_CHECK_HEADERS, timeout=15, stream=True)
+        if resp.status_code == 200:
+            return True
+        print(f"   (image check got HTTP {resp.status_code} for {image_url})")
+        return False
+    except requests.RequestException as e:
+        print(f"   (image check raised {e!r} for {image_url})")
         return False
 
 
