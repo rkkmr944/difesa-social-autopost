@@ -244,6 +244,10 @@ def main():
 
     _save_result(target_date, results)
     print(json.dumps(results, indent=2, default=str))
+    failed = [p for p, r in results.items() if isinstance(r, dict) and r.get("ok") is False]
+    if failed:
+        print("FAILED platforms: " + ", ".join(failed) + " - see errors above / results.json")
+        sys.exit(1)
 
 
 def _save_result(target_date, results):
